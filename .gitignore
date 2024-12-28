@@ -1,0 +1,65 @@
+# Diretórios e arquivos gerados pelo Visual Studio/Visual Studio Code
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Diretórios de compilação
+bin/
+obj/
+out/
+
+# Logs, relatórios e backups
+*.log
+*.tlog
+*.pdb
+*.cache
+*.ilk
+*.idb
+*.pidb
+*.scc
+*.orig
+*.err
+*.ncb
+
+# Arquivos de publicação e empacotamento
+.publish/
+*.publishsettings
+*.pubxml
+*.pubxml.user
+
+# Configurações de usuário
+*.dbmdl
+*.jfm
+*.sqlproj.user
+
+# Arquivos temporários e de sistema
+*.tmp
+*.temp
+*.bak
+*.swp
+*.DS_Store
+*.directory
+Thumbs.db
+*.~undo-tree~
+
+# Configurações específicas do projeto
+appsettings.Development.json
+secrets.json
+
+# Arquivos gerados pelo dotnet
+project.lock.json
+project.fragment.lock.json
+
+# Diretórios de dependências
+node_modules/
+bower_components/
+packages/
+dist/
+wwwroot/lib/
+
+# Outros arquivos desnecessários
+*.vs/
+.idea/
+_ReSharper*/
