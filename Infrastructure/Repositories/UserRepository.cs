@@ -144,10 +144,4 @@ public class UserRepository : IUserRepository
             throw new ArgumentException("Email already exists.");
         }
     }
-
-    public Task PasswordInvalidAsync()
-    {
-        
-        throw new Exception();
-    }
 }

@@ -13,6 +13,7 @@ public class UserService : IUserService
 {
     private readonly ValidateService _validateService;
     private readonly IUserRepository _userRepository;
+
     private readonly ILogger<UserService> _logger;
 
     public UserService(IUserRepository userRepository, ILogger<UserService> logger, ValidateService validateService)
@@ -187,9 +188,6 @@ public class UserService : IUserService
         {
             throw new Exception("Password must contain at least one special character.");
         }
-
         await Task.CompletedTask;
     }
-
-
 }
