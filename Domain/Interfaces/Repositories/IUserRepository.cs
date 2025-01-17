@@ -1,6 +1,6 @@
 using SolicitaFacil.Domain.Entities;
 
-namespace SolicitaFacil.Domain.Interfaces;
+namespace SolicitaFacil.Domain.Interfaces.Repositories;
 
 public interface IUserRepository
 {
@@ -9,6 +9,8 @@ public interface IUserRepository
     Task<User> CreateUserAsync(User user);
     Task<User> UpdateUserAsync(Guid userId, User user);
     Task DeleteAsync(Guid userId);
-    Task EmailExistAsync(string email);
-    Task NumberPhoneExistAsync(string phoneNumber);
+    Task<bool> EmailExistAsync(string email);
+    Task<bool> NumberPhoneExistAsync(string phoneNumber);
 }
+
+    

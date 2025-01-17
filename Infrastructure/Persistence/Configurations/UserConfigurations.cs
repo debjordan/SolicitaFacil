@@ -30,7 +30,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt)
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
         
-        builder.Property(u => u.PasswordHash)
+        builder.Property(u => u.Password)
             .IsRequired()
             .HasColumnType("varbinary(max)");
             

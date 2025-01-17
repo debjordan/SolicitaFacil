@@ -3,6 +3,7 @@ using SolicitaFacil.Domain.Interfaces;
 using SolicitaFacil.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SolicitaFacil.Domain.Interfaces.Repositories;
 
 namespace SolicitaFacil.Infrastructure.Repositories;
 
@@ -121,27 +122,29 @@ public class UserRepository : IUserRepository
             throw;
         }
     }
-    public async Task EmailExistAsync(string email)
+    public async Task<bool> EmailExistAsync(string email)
     {
         var emailExists = await _context.Users
-                                    .AnyAsync(u => u.Email == email);
+                                        .AnyAsync(u => u.Email == email);
 
         if (emailExists)
         {
             _logger.LogWarning($"Email {email} already exists.");
-            throw new ArgumentException("Email already exists.");
         }
+
+        return emailExists;
     }
 
-    public async Task NumberPhoneExistAsync(string phone)
+    public async Task<bool> NumberPhoneExistAsync(string phone)
     {
         var phoneExists = await _context.Users
-                                    .AnyAsync(u => u.PhoneNumber == phone);
+                                        .AnyAsync(u => u.PhoneNumber == phone);
 
         if (phoneExists)
         {
-            _logger.LogWarning($"Email {phone} already exists.");
-            throw new ArgumentException("Email already exists.");
+            _logger.LogWarning($"Phone number {phone} already exists.");
         }
+
+        return phoneExists;
     }
 }

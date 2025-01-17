@@ -1,6 +1,6 @@
 using SolicitaFacil.Shared.DTOs.SubscriptionDTOs;
 
-namespace SolicitaFacil.Application.Interfaces;
+namespace SolicitaFacil.Domain.Interfaces.Services;
 
 public interface ISubscriptionService
 {

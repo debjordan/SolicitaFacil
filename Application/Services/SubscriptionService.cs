@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Logging;
-using SolicitaFacil.Domain.Interfaces;
-using SolicitaFacil.Shared.Services;
-using SolicitaFacil.Application.Interfaces;
+using SolicitaFacil.Domain.Interfaces.Services;
+using SolicitaFacil.Domain.Interfaces.Repositories;
 using SolicitaFacil.Shared.DTOs.SubscriptionDTOs;
+using SolicitaFacil.Domain.Services;
+using SolicitaFacil.Domain.Entities;
 
 namespace SolicitaFacil.Application.Services;
 
@@ -11,17 +12,17 @@ public class SubscriptionService : ISubscriptionService
     private readonly ValidateService _validateService;
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly ILogger<SubscriptionService> _logger;
-    private readonly IPasswordValidator _passwordValidator;
+    private readonly PasswordValidator _passwordValidator;
 
 
-    public SubscriptionService(ISubscriptionRepository subscriptionRepository, ILogger<SubscriptionService> logger, ValidateService validateService, IPasswordValidator passwordValidator)
+    public SubscriptionService(ISubscriptionRepository subscriptionRepository, ILogger<SubscriptionService> logger, ValidateService validateService, PasswordValidator passwordValidator)
     {
         _subscriptionRepository = subscriptionRepository;
         _logger = logger;
         _validateService = validateService;
         _passwordValidator = passwordValidator;
     }
-    public async Task<IEnumerable<SubscriptionListDto>> GetAllSubscriptionsAsync()
+    public async Task<IEnumerable<SubscriptionDetailsDto>> GetAllSubscriptionsAsync()
     {
         _logger.LogInformation("Getting all subscriptions...");
         
@@ -29,19 +30,18 @@ public class SubscriptionService : ISubscriptionService
         if (subscriptions == null)
         {
             _logger.LogWarning("No subscriptions found.");
-            return Enumerable.Empty<SubscriptionListDto>();
+            return Enumerable.Empty<SubscriptionDetailsDto>();
         }
-        return subscriptions.Select(subscriptions => new SubscriptionListDto
+        return subscriptions.Select(subscription => new SubscriptionDetailsDto
         {
-            UserId = subscriptions.UserId,
-            UserType = subscriptions.UserType,
-            PlanName = subscriptions.PlanName,
-            PlanPrice = subscriptions.PlanPrice,
-            StartDate = subscriptions.StartDate,
-            EndDate = subscriptions.EndDate,
-            PayementDate = subscriptions.PayementDate,
-            ExpirationDate = subscriptions.ExpirationDate,
-            Features = subscriptions.Features            
+            UserId = subscription.UserId,
+            UserType = subscription.UserType,
+            PlanName = subscription.PlanName,
+            PlanPrice = subscription.PlanPrice,
+
+            StartDate = subscription.StartDate,
+            EndDate = subscription.EndDate,
+            Features = subscription.Features
         });
     }
 
@@ -67,13 +67,14 @@ public class SubscriptionService : ISubscriptionService
         };
     }
 
-    public async Task<SubscriptionDetailsDto> CreateSubscriptionAsync(CreateSubscriptionDto subscriptionDto)
+    public async Task<CreateSubscriptionDto> CreateSubscriptionAsync(CreateSubscriptionDto subscriptionDto)
     {
         if (subscriptionDto == null)
         {
             throw new ArgumentNullException("Subscription DTO cannot be null");
         }
-        
+
+        // Verifique se a assinatura já existe no repositório
         var existingsubscription = await _subscriptionRepository.GetSubscriptionByIdAsync(subscriptionDto.UserId);
         if (existingsubscription != null)
         {
@@ -82,7 +83,9 @@ public class SubscriptionService : ISubscriptionService
         }
 
         _logger.LogInformation($"Creating new subscription for user with ID {subscriptionDto.UserId}...");
-        var subscription = new CreateSubscriptionDto
+
+        // Crie a entidade Subscription a partir do DTO
+        var subscription = new Subscription
         {
             UserId = subscriptionDto.UserId,
             UserType = subscriptionDto.UserType,
@@ -95,10 +98,13 @@ public class SubscriptionService : ISubscriptionService
             Features = subscriptionDto.Features
         };
 
-        var createdSubscription = await _subscriptionRepository.CreateSubscriptionAsync(subscriptionDto);
+        // Agora você pode passar a entidade Subscription para o repositório
+        var createdSubscription = await _subscriptionRepository.CreateSubscriptionAsync(subscription);
 
         _logger.LogInformation($"Subscription created successfully for user with ID {createdSubscription.UserId}.");
-        return new SubscriptionDetailsDto
+
+        // Retorne o DTO com os detalhes da nova assinatura criada
+        return new CreateSubscriptionDto
         {
             UserId = createdSubscription.UserId,
             UserType = createdSubscription.UserType,
@@ -107,6 +113,57 @@ public class SubscriptionService : ISubscriptionService
             StartDate = createdSubscription.StartDate,
             EndDate = createdSubscription.EndDate,
             Features = createdSubscription.Features
-        };    
+        };
     }
+    public async Task<UpdateSubscriptionDto> UpdateSubscriptionByIdAsync(Guid id, UpdateSubscriptionDto subscriptionDto)
+    {
+        if (subscriptionDto == null)
+        {
+            throw new ArgumentNullException("Subscription DTO cannot be null");
+        }
+
+        var existingSubscription = await _subscriptionRepository.GetSubscriptionByIdAsync(id);
+        if (existingSubscription == null)
+        {
+            _logger.LogWarning($"No subscription found with ID {id}.");
+            return null;
+        }
+
+        existingSubscription.PlanName = subscriptionDto.PlanName;
+        existingSubscription.PlanPrice = subscriptionDto.PlanPrice;
+        existingSubscription.Features = subscriptionDto.Features;
+
+        var updatedSubscription = await _subscriptionRepository.UpdateSubscriptionByIdAsync(id, existingSubscription);
+
+        _logger.LogInformation($"Subscription with ID {id} updated successfully.");
+
+        return new UpdateSubscriptionDto
+        {
+            PlanName = updatedSubscription.PlanName,
+            PlanPrice = updatedSubscription.PlanPrice,
+            EndDate = updatedSubscription.EndDate,
+            Features = updatedSubscription.Features
+        };
+    }
+
+    public async Task<CancelSubscriptionDto> DeleteSubscriptionByIdAsync(Guid id)
+    {
+        var existingSubscription = await _subscriptionRepository.GetSubscriptionByIdAsync(id);
+        if (existingSubscription == null)
+        {
+            _logger.LogWarning($"No subscription found with ID {id}.");
+            return null;
+        }
+
+        await _subscriptionRepository.DeleteSubscriptionByIdAsync(id);
+
+        _logger.LogInformation($"Subscription with ID {id} deleted successfully.");
+
+        return new CancelSubscriptionDto
+        {
+            UserId = existingSubscription.UserId,
+        };
+    }
+
+
 }

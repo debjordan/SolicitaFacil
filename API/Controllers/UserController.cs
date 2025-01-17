@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using SolicitaFacil.Application.Interfaces;
+using SolicitaFacil.Domain.Interfaces.Services;
 using SolicitaFacil.Shared.DTOs.UserDTOs;
 
 namespace SolicitaFacil.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/user")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;

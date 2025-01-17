@@ -1,26 +1,27 @@
-using SolicitaFacil.Application.Interfaces;
-using SolicitaFacil.Domain.Interfaces;
+using SolicitaFacil.Domain.Interfaces.Repositories;
+using SolicitaFacil.Domain.Interfaces.Services;
 using SolicitaFacil.Shared.DTOs.UserDTOs;
-using SolicitaFacil.Shared.Services;
 using SolicitaFacil.Domain.Entities;
 using Microsoft.Extensions.Logging;
-using System.Data.Common;
 using System.ComponentModel.DataAnnotations;
 
-namespace SolicitaFacil.Application.Services;   
+namespace SolicitaFacil.Application.Services;
 
 public class UserService : IUserService
 {
+    private readonly IPasswordValidatorService _passwordValidator;
+
     private readonly ValidateService _validateService;
     private readonly IUserRepository _userRepository;
 
     private readonly ILogger<UserService> _logger;
 
-    public UserService(IUserRepository userRepository, ILogger<UserService> logger, ValidateService validateService)
+    public UserService(IUserRepository userRepository, ILogger<UserService> logger, ValidateService validateService, IPasswordValidatorService passwordValidatorService)
     {
         _userRepository = userRepository;
         _logger = logger;
         _validateService = validateService;
+        _passwordValidator = passwordValidatorService;
     }
 
     public async Task<IEnumerable<UserListDto>> GetAllUsersAsync()
@@ -68,25 +69,54 @@ public class UserService : IUserService
     {
         if (userDto == null)
         {
-            throw new ArgumentNullException("User DTO cannot be null");
+            throw new ArgumentNullException(nameof(userDto), "User DTO cannot be null");
         }
-        await _userRepository.EmailExistAsync(userDto.Email);
-        await _userRepository.NumberPhoneExistAsync(userDto.PhoneNumber);
-        await PasswordInvalidAsync(userDto.Password);
-        
+
+        if (string.IsNullOrEmpty(userDto.Email))
+        {
+            throw new ArgumentException("Email is required.");
+        }
+
+        if (string.IsNullOrEmpty(userDto.PhoneNumber))
+        {
+            throw new ArgumentException("Phone number is required.");
+        }
+
+        if (!_passwordValidator.Validate(userDto.Password))
+        {
+            throw new ArgumentException("Password does not meet the required standards.");
+        }
+
+        var existingEmail = await _userRepository.EmailExistAsync(userDto.Email);
+        if (existingEmail)
+        {
+            throw new ArgumentException("Email is already in use.");
+        }
+
+        var existingPhoneNumber = await _userRepository.NumberPhoneExistAsync(userDto.PhoneNumber);
+        if (existingPhoneNumber)
+        {
+            throw new ArgumentException("Phone number is already in use.");
+        }
+
+        var hashedPassword = HashPassword(userDto.Password);
+
         _logger.LogInformation("Creating new user...");
+
         var user = new User
         {
             Id = Guid.NewGuid(),
             Name = userDto.Name,
             Email = userDto.Email,
             PhoneNumber = userDto.PhoneNumber,
-            Role = userDto.Role
+            Role = userDto.Role,
+            Password = hashedPassword 
         };
 
         var createdUser = await _userRepository.CreateUserAsync(user);
 
         _logger.LogInformation($"User {user.Name} created successfully with ID {user.Id}");
+
         return new CreateUserDto
         {
             Name = createdUser.Name,
@@ -94,6 +124,11 @@ public class UserService : IUserService
             PhoneNumber = createdUser.PhoneNumber,
             Role = createdUser.Role
         };
+    }
+
+    private string HashPassword(string password)
+    {
+        return BCrypt.Net.BCrypt.HashPassword(password);
     }
 
     public async Task<UpdateUserDto> UpdateUserAsync(Guid userId, UpdateUserDto userDto)

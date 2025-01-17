@@ -1,5 +1,5 @@
 using SolicitaFacil.Domain.Entities;
-namespace SolicitaFacil.Domain.Interfaces;
+namespace SolicitaFacil.Domain.Interfaces.Repositories;
 
 public interface ISubscriptionRepository
 {

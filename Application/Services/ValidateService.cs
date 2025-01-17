@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
-using SolicitaFacil.Domain.Interfaces;
 
-namespace SolicitaFacil.Shared.Services;
+namespace SolicitaFacil.Application.Services;
 public class ValidateService
 {
     private readonly ILogger<ValidateService> _logger;
-    private readonly IUserRepository _userRepository;
 
     public ValidateService(ILogger<ValidateService> logger)
     {
@@ -44,8 +42,5 @@ public class ValidateService
             _logger.LogError("Email length exceeds maximum limit of 255 characters.");
             throw new Exception("Email length exceeds maximum limit of 255 characters.");
         }
-
-        await _userRepository.EmailExistAsync(email);
-
     }
 }

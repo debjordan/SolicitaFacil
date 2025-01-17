@@ -1,9 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SolicitaFacil.API.Middleware;
 using SolicitaFacil.Infrastructure.Persistence;
-using Microsoft.Extensions.Logging;
-using SolicitaFacil.Shared.Services;
-using SolicitaFacil.Shared.DTOs.UserDTOs;
+using SolicitaFacil.Application.Services;
 
 namespace SolicitaFacil.API;
 
@@ -23,7 +21,7 @@ public class Program
             .GetConnectionString("DefaultConnection")));
         
         builder.Services.AddScoped<ValidateService>();
-
+        builder.Services.AddControllers(); // Registrar Controllers
         
         // ILogger
         builder.Logging.ClearProviders();
@@ -37,11 +35,13 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseHttpsRedirection();
 
+        // Mapear Controllers
+        app.MapControllers(); // Isso mapeia os controllers para as rotas
+
         app.Run();
-
-
     }
 }

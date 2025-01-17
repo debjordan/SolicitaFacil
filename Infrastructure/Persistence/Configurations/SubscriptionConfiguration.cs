@@ -6,9 +6,9 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 {
     public void Configure(EntityTypeBuilder<Subscription> builder)
     {
-        builder.HasKey(s => s.Id);
+        builder.HasKey(s => s.UserId);
 
-        builder.Property(s => s.Status)
+        builder.Property(s => s.UserName)
             .IsRequired()
             .HasMaxLength(20);
         

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using SolicitaFacil.Application.Interfaces;
-using SolicitaFacil.API.DTOs.SubscriptionDTOs;
+using SolicitaFacil.Domain.Interfaces.Services;
 using SolicitaFacil.Shared.DTOs.SubscriptionDTOs;
 
 namespace SolicitaFacil.API.Controllers;
@@ -66,7 +65,7 @@ public class SubscriptionController : ControllerBase
             return NotFound(new { Message = $"Subscription with ID {id} not found" });
         }
         
-        await _subscriptionService.UpdateSubscriptionAsync(id, request);
+        await _subscriptionService.UpdateSubscriptionByIdAsync(id, request);
         return NoContent();
     }
 
@@ -79,7 +78,7 @@ public class SubscriptionController : ControllerBase
             return NotFound(new { Message = $"Subscription with ID {id} not found" });
         }
         
-        await _subscriptionService.DeleteSubscriptionAsync(id);
+        await _subscriptionService.DeleteSubscriptionByIdAsync(id);
         return NoContent();
     }
 }

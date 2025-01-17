@@ -1,5 +1,5 @@
 using SolicitaFacil.Shared.DTOs.UserDTOs;
-namespace SolicitaFacil.Application.Interfaces;
+namespace SolicitaFacil.Domain.Interfaces.Services;
 
 public interface IUserService
 {

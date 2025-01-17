@@ -1,6 +1,7 @@
 using SolicitaFacil.Domain.Interfaces;
+using SolicitaFacil.Domain.Interfaces.Services;
 namespace SolicitaFacil.Domain.Services;
-public class PasswordValidator : IPasswordValidator
+public class PasswordValidator : IPasswordValidatorService
 {
     public bool Validate(string password)
     {
