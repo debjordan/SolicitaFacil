@@ -5,7 +5,7 @@ using SolicitaFacil.Shared.DTOs.UserDTOs;
 namespace SolicitaFacil.API.Controllers;
 
 [ApiController]
-[Route("api/user")]
+[Route("api/v1/user")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -19,10 +19,6 @@ public class UserController : ControllerBase
     public async Task<ActionResult<IEnumerable<UserListDto>>> GetAllUsersAsync()
     {
         var result = await _userService.GetAllUsersAsync();
-        if (result == null)
-        {
-            return NoContent();
-        }
         return Ok(result);
     }
 
@@ -30,10 +26,6 @@ public class UserController : ControllerBase
     public async Task<ActionResult<UserListDto>> GetUserByIdAsync(Guid id)
     {
         var result = await _userService.GetByIdUserAsync(id);
-        if (result == null)
-        {
-            return NotFound(new { Message = $"User with ID {id} not found" });
-        }
         return Ok(result);
     }
 
@@ -49,31 +41,19 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<UpdateUserDto>> UpdateUserAsync(Guid id, [FromBody] UpdateUserDto request)
+    public async Task<IActionResult> UpdateUserAsync(Guid id, [FromBody] UpdateUserDto request)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
-
-        var userExists = await _userService.GetByIdUserAsync(id);
-        if (userExists == null)
-        {
-            return NotFound(new { Message = $"User with ID {id} not found" });
-        }
-
         await _userService.UpdateUserAsync(id, request);
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteUserAsync(Guid id)
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteUserAsync(Guid id)
     {
-        var userExists = await _userService.GetByIdUserAsync(id);
-        if (userExists == null)
-        {
-            return NotFound(new { Message = $"User with ID {id} not found" });
-        }
         await _userService.DeleteUserAsync(id);
         return NoContent();
     }
