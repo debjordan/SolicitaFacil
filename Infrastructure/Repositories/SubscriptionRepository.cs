@@ -1,79 +1,52 @@
 using Microsoft.EntityFrameworkCore;
 using SolicitaFacil.Domain.Entities;
 using SolicitaFacil.Domain.Interfaces.Repositories;
+using SolicitaFacil.Infrastructure.Persistence;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace SolicitaFacil.Infrastructure.Repositories
+namespace SolicitaFacil.Infrastructure.Repositories;
+
+public class SubscriptionRepository : ISubscriptionRepository
 {
-    public class SubscriptionRepository : ISubscriptionRepository
+    private readonly AppDbContext _context;
+
+    public SubscriptionRepository(AppDbContext context)
     {
-        private readonly DbContext _context;
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+    }
 
-        public SubscriptionRepository(DbContext context)
-        {
-            _context = context;
-        }
+    public async Task<IEnumerable<Subscription>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Subscriptions
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
 
-        public async Task<IEnumerable<Subscription>> GetAllSubscriptionsAsync()
-        {
-            return await _context.Set<Subscription>().ToListAsync();
-        }
+    public async Task<Subscription> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Subscriptions
+            .FirstOrDefaultAsync(s => s.SubscriptionId == id, cancellationToken);
+    }
 
-        public async Task<Subscription> GetSubscriptionByIdAsync(Guid id)
-        {
-            return await _context.Set<Subscription>().FirstOrDefaultAsync(s => s.UserId == id);
-        }
+    public async Task<Subscription> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Subscriptions
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == "Active", cancellationToken);
+    }
 
-        public async Task<Subscription> CreateSubscriptionAsync(Subscription request)
-        {
-            var subscription = new Subscription
-            {
-                UserId = request.UserId,
-                UserType = request.UserType,
-                PlanName = request.PlanName,
-                PlanPrice = request.PlanPrice,
-                StartDate = request.StartDate,
-                EndDate = request.EndDate,
-                PayementDate = request.PayementDate,
-                ExpirationDate = request.ExpirationDate,
-                Features = request.Features
-            };
+    public async Task AddAsync(Subscription subscription, CancellationToken cancellationToken = default)
+    {
+        _context.Subscriptions.Add(subscription);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 
-            await _context.Set<Subscription>().AddAsync(subscription);
-            await _context.SaveChangesAsync();
-
-            return subscription;
-        }
-
-        public async Task<Subscription> UpdateSubscriptionByIdAsync(Guid id, Subscription request)
-        {
-            var existingSubscription = await _context.Set<Subscription>().FirstOrDefaultAsync(s => s.UserId == id);
-            if (existingSubscription == null)
-            {
-                return null;
-            }
-
-            existingSubscription.PlanName = request.PlanName;
-            existingSubscription.PlanPrice = request.PlanPrice;
-            existingSubscription.StartDate = request.StartDate;
-            existingSubscription.EndDate = request.EndDate;
-            existingSubscription.Features = request.Features;
-
-            await _context.SaveChangesAsync();
-            return existingSubscription;
-        }
-
-        public async Task<Subscription> DeleteSubscriptionByIdAsync(Guid id)
-        {
-            var subscription = await _context.Set<Subscription>().FirstOrDefaultAsync(s => s.UserId == id);
-            if (subscription == null)
-            {
-                return null;
-            }
-
-            _context.Set<Subscription>().Remove(subscription);
-            await _context.SaveChangesAsync();
-
-            return subscription;
-        }
+    public async Task UpdateAsync(Subscription subscription, CancellationToken cancellationToken = default)
+    {
+        _context.Subscriptions.Update(subscription);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }
