@@ -1,84 +1,155 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SolicitaFacil.Domain.Interfaces.Services;
 using SolicitaFacil.Shared.DTOs.SubscriptionDTOs;
+using System;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Http;
+using FluentValidation;
+using System.Threading;
 
 namespace SolicitaFacil.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
+[ApiVersion("1.0")]
+[Produces("application/json")]
 public class SubscriptionController : ControllerBase
 {
     private readonly ISubscriptionService _subscriptionService;
-    public SubscriptionController(ISubscriptionService subscriptionService)
+    private readonly ILogger<SubscriptionController> _logger;
+    private readonly IValidator<CreateSubscriptionDto> _createValidator;
+    private readonly IValidator<UpdateSubscriptionDto> _updateValidator;
+
+    public SubscriptionController(
+        ISubscriptionService subscriptionService,
+        ILogger<SubscriptionController> logger,
+        IValidator<CreateSubscriptionDto> createValidator,
+        IValidator<UpdateSubscriptionDto> updateValidator)
     {
-        _subscriptionService = subscriptionService;
+        _subscriptionService = subscriptionService ?? throw new ArgumentNullException(nameof(subscriptionService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _createValidator = createValidator ?? throw new ArgumentNullException(nameof(createValidator));
+        _updateValidator = updateValidator ?? throw new ArgumentNullException(nameof(updateValidator));
     }
+
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<SubscriptionDetailsDto>>> GetAllSubscriptionsAsync()
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAllSubscriptionsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _subscriptionService.GetAllSubscriptionsAsync();
-        if (result == null)
+        _logger.LogInformation("Fetching all subscriptions.");
+        var subscriptions = await _subscriptionService.GetAllSubscriptionsAsync(cancellationToken);
+
+        if (subscriptions == null || !subscriptions.Any())
         {
-            NoContent();
+            _logger.LogWarning("No subscriptions found.");
+            return NotFound(new ApiResponse<object>(false, "No subscriptions found."));
         }
-        return Ok(result);
+
+        return Ok(new ApiResponse<IEnumerable<SubscriptionDetailsDto>>(true, "Subscriptions retrieved successfully.", subscriptions));
     }
+
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<SubscriptionDetailsDto>> GetSubscriptionByIdAsync(Guid Id)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSubscriptionByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var result = await _subscriptionService.GetSubscriptionByIdAsync(Id);
-        if (result == null)
+        _logger.LogInformation("Fetching subscription with ID {SubscriptionId}.", id);
+        var subscription = await _subscriptionService.GetSubscriptionByIdAsync(id, cancellationToken);
+
+        if (subscription == null)
         {
-            NotFound(new { Message = $"User with ID {Id} not found"});
+            _logger.LogWarning("Subscription with ID {SubscriptionId} not found.", id);
+            return NotFound(new ApiResponse<object>(false, $"Subscription with ID {id} not found."));
         }
-        return Ok(result);
+
+        return Ok(new ApiResponse<SubscriptionDetailsDto>(true, "Subscription retrieved successfully.", subscription));
     }
 
     [HttpPost]
-    public async Task<ActionResult<CreateSubscriptionDto>> CreateSubscriptionAsync([FromBody] CreateSubscriptionDto request)
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateSubscriptionAsync(
+        [FromBody] CreateSubscriptionDto request,
+        CancellationToken cancellationToken = default)
     {
-        if (!ModelState.IsValid)
+        _logger.LogInformation("Creating a new subscription for user {UserId}.", request.UserId);
+
+        var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return BadRequest(ModelState);
-        }   
-                
-        var result = await _subscriptionService.CreateSubscriptionAsync(request);
+            _logger.LogWarning("Validation failed for subscription creation: {Errors}", validationResult.Errors);
+            return BadRequest(new ApiResponse<object>(false, "Validation failed.", validationResult.Errors));
+        }
+
+        var result = await _subscriptionService.CreateSubscriptionAsync(request, cancellationToken);
         if (result == null)
         {
-            return Conflict(new { Message = $"Subscription with ID {request.UserId} already exists" });
+            _logger.LogWarning("Subscription creation failed: already exists for user {UserId}.", request.UserId);
+            return Conflict(new ApiResponse<object>(false, $"A subscription for user {request.UserId} already exists."));
         }
-        
-        return CreatedAtAction(nameof(GetSubscriptionByIdAsync), new { id = result.UserId }, result);
+
+        return CreatedAtAction(
+            nameof(GetSubscriptionByIdAsync),
+            new { id = result.SubscriptionId ?? result.UserId, version = "1.0" },
+            new ApiResponse<CreateSubscriptionDto>(true, "Subscription created successfully.", result));
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<UpdateSubscriptionDto>> UpdateSubscriptionByIdAsync(Guid id, [FromBody] UpdateSubscriptionDto request)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateSubscriptionByIdAsync(
+        Guid id,
+        [FromBody] UpdateSubscriptionDto request,
+        CancellationToken cancellationToken = default)
     {
-        if (!ModelState.IsValid)
+        _logger.LogInformation("Updating subscription with ID {SubscriptionId}.", id);
+
+        var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return BadRequest(ModelState);
+            _logger.LogWarning("Validation failed for subscription update: {Errors}", validationResult.Errors);
+            return BadRequest(new ApiResponse<object>(false, "Validation failed.", validationResult.Errors));
         }
-        
-        var exist = await GetSubscriptionByIdAsync(id);
-        if (exist == null)
+
+        if (request.SubscriptionId != null && request.SubscriptionId != id)
         {
-            return NotFound(new { Message = $"Subscription with ID {id} not found" });
+            _logger.LogWarning("Subscription ID mismatch: {RequestId} vs {RouteId}", request.SubscriptionId, id);
+            return BadRequest(new ApiResponse<object>(false, "Subscription ID in request does not match the route ID."));
         }
-        
-        await _subscriptionService.UpdateSubscriptionByIdAsync(id, request);
+
+        var updated = await _subscriptionService.UpdateSubscriptionByIdAsync(id, request, cancellationToken);
+        if (!updated)
+        {
+            _logger.LogWarning("Subscription with ID {SubscriptionId} not found for update.", id);
+            return NotFound(new ApiResponse<object>(false, $"Subscription with ID {id} not found."));
+        }
+
+        _logger.LogInformation("Subscription with ID {SubscriptionId} updated successfully.", id);
         return NoContent();
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<CancelSubscriptionDto>> DeleteSubscriptionByIdAsync(Guid id)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteSubscriptionByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var exist = await GetSubscriptionByIdAsync(id);
-        if (exist == null)
+        _logger.LogInformation("Deleting subscription with ID {SubscriptionId}.", id);
+
+        var deleted = await _subscriptionService.DeleteSubscriptionByIdAsync(id, cancellationToken);
+        if (!deleted)
         {
-            return NotFound(new { Message = $"Subscription with ID {id} not found" });
+            _logger.LogWarning("Subscription with ID {SubscriptionId} not found for deletion.", id);
+            return NotFound(new ApiResponse<object>(false, $"Subscription with ID {id} not found."));
         }
-        
-        await _subscriptionService.DeleteSubscriptionByIdAsync(id);
+
+        _logger.LogInformation("Subscription with ID {SubscriptionId} deleted successfully.", id);
         return NoContent();
     }
 }
+
+public record ApiResponse<T>(bool Success, string Message, T Data = default, object Errors = null);
